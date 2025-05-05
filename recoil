@@ -1,0 +1,115 @@
+# 🌀 Recoil trong ReactJS
+
+## 📌 Giới thiệu
+
+**Recoil** là một thư viện quản lý state dành cho React, được phát triển bởi Facebook. Mục tiêu chính của Recoil là đơn giản hóa việc chia sẻ state giữa các component, hỗ trợ tốt cho các ứng dụng React có cấu trúc phức tạp.
+
+> Recoil hoạt động như một **state management** solution nhưng gần gũi với cú pháp và tư duy của React hơn.
+
+---
+
+## 🚀 Ưu điểm của Recoil
+
+- Hoạt động liền mạch với React hooks (`useRecoilState`, `useRecoilValue`,...).
+- Hỗ trợ **Derived State** và **Asynchronous State** (tương tự như computed và async trong Vue).
+- Dễ dàng **code splitting** và **server-side rendering**.
+- Không cần viết reducer như Redux.
+- Có thể dùng selector để tạo giá trị phái sinh từ nhiều atom.
+
+---
+
+## ⚙️ Cài đặt
+
+```bash
+npm install recoil
+import { atom } from 'recoil';
+
+export const counterState = atom({
+  key: 'counterState', // unique ID
+  default: 0,          // giá trị mặc định
+});
+import { selector } from 'recoil';
+import { counterState } from './atoms';
+
+export const doubledCounter = selector({
+  key: 'doubledCounter',
+  get: ({ get }) => get(counterState) * 2,
+});
+import React from 'react';
+import { useRecoilState, useRecoilValue } from 'recoil';
+import { counterState, doubledCounter } from './state';
+
+const Counter = () => {
+  const [count, setCount] = useRecoilState(counterState);
+  const double = useRecoilValue(doubledCounter);
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <p>Doubled: {double}</p>
+      <button onClick={() => setCount(count + 1)}>Tăng</button>
+    </div>
+  );
+};
+import React from 'react';
+import ReactDOM from 'react-dom';
+import App from './App';
+import { RecoilRoot } from 'recoil';
+
+ReactDOM.render(
+  <RecoilRoot>
+    <App />
+  </RecoilRoot>,
+  document.getElementById('root')
+);
+---
+
+## ⏳ Async Selector trong Recoil
+
+Recoil hỗ trợ selector bất đồng bộ (async selector), cho phép bạn lấy dữ liệu từ API hoặc thực hiện các thao tác async như fetch, delay, v.v.
+
+### 🧠 Tình huống sử dụng
+
+Ví dụ: bạn muốn lấy danh sách người dùng từ một API và sử dụng dữ liệu đó trong component.
+
+---
+
+### 🔧 Bước 1: Tạo async selector
+
+```js
+import { selector } from 'recoil';
+
+export const userListSelector = selector({
+  key: 'userListSelector',
+  get: async () => {
+    const response = await fetch('https://jsonplaceholder.typicode.com/users');
+    if (!response.ok) {
+      throw new Error('Failed to fetch users');
+    }
+    const data = await response.json();
+    return data;
+  },
+});
+import React from 'react';
+import { useRecoilValueLoadable } from 'recoil';
+import { userListSelector } from './state';
+
+const UserList = () => {
+  const usersLoadable = useRecoilValueLoadable(userListSelector);
+
+  if (usersLoadable.state === 'loading') {
+    return <div>Đang tải dữ liệu...</div>;
+  }
+
+  if (usersLoadable.state === 'hasError') {
+    return <div>Lỗi khi tải dữ liệu.</div>;
+  }
+
+  return (
+    <ul>
+      {usersLoadable.contents.map((user) => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  );
+};
