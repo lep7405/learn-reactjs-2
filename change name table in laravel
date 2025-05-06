@@ -1,0 +1,131 @@
+# Solutions for Dynamic Table Issue in Laravel
+
+This document outlines four solutions provided to address issues with dynamically setting database tables and connections in a Laravel application, specifically for the `DiscountRepositoryEloquent` class. The problem involved errors related to incorrect table (`discounts` instead of `discounts_new`) and database connection (`freegifts` or `discount` instead of `freegifts_new`) when performing operations like `count`, `all`, and `create`.
+
+---
+
+## Solution 1: Fix Order of `setTable` and `on`
+
+### Problem
+Calling `$model->setTable($table)->on($databaseName)` caused an error because `setTable` was applied on the default connection (`freegifts`), which did not have the `discounts_new` table.
+
+### Solution
+Reverse the order to call `$model->on($databaseName)->setTable($table)` to set the database connection first. However, this led to a new issue because `on($databaseName)` returns a `Builder` instance, which does not have a `setTable` method.
+
+### Code
+```php
+protected function getDiscountModel(string $databaseName)
+{
+    $modelClass = $this->model();
+    $model = app($modelClass);
+    $table = $databaseName === 'freegifts_new' ? 'discounts_new' : 'discounts';
+    $model->on($databaseName)->setTable($table); // This caused error
+    \Log::info("Model Table: {$model->getTable()}, Connection: {$model->getConnectionName()}");
+    return $model;
+}
+```
+
+### Outcome
+This approach was abandoned due to the `Builder` issue, leading to Solution 2.
+
+---
+
+## Solution 2: Replace `on($databaseName)` with `setConnection($databaseName)`
+
+### Problem
+The `on($databaseName)` method returns a `Builder` instance, causing a `Call to undefined method Illuminate\Database\Eloquent\Builder::setTable()` error when attempting to call `setTable`.
+
+### Solution
+Use `$model->setConnection($databaseName)` instead of `on($databaseName)` to set the database connection on the model instance directly, allowing `setTable` to be called afterward without errors.
+
+### Code
+```php
+protected function getDiscountModel(string $databaseName)
+{
+    $modelClass = $this->model();
+    $model = app($modelClass);
+    $table = $databaseName === 'freegifts_new' ? 'discounts_new' : 'discounts';
+    $model->setConnection($databaseName)->setTable($table);
+    \Log::info("Model Table: {$model->getTable()}, Connection: {$model->getConnectionName()}");
+    return $model;
+}
+```
+
+### Outcome
+This solution resolved the `Builder` error and ensured the correct connection (`freegifts_new`) and table (`discounts_new`) were set for queries like `count` and `all`. However, issues persisted with the `createDiscount` method due to additional queries.
+
+---
+
+## Solution 3: Fix `createDiscount` Method
+
+### Problem
+The `createDiscount` method triggered an error: `SQLSTATE[42S02]: Base table or view not found: 1146 Table 'discount.discounts' doesn't exist`. This was caused by an additional query (`select * from discounts where id = 1006`) using the wrong table (`discounts`) and connection (`mysql`/`discount`) after creating a record.
+
+### Solution
+- Add debugging to log the model state before and after the `create` operation.
+- Disable relationships temporarily using `$model->setRelations([])` to prevent unwanted queries from relationships.
+- Enable query logging to identify the source of the additional query.
+
+### Code
+```php
+public function createDiscount(string $databaseName, array $attributes)
+{
+    DB::enableQueryLog();
+    $model = $this->getDiscountModel($databaseName);
+    \Log::info("Before Create - Table: {$model->getTable()}, Connection: {$model->getConnectionName()}");
+    $model->setRelations([]);
+    $created = $model->create($attributes);
+    \Log::info("After Create - ID: {$created->id}, Table: {$created->getTable()}, Connection: {$created->getConnectionName()}");
+    \Log::info("Queries: " . json_encode(DB::getQueryLog()));
+    return $created;
+}
+```
+
+### Outcome
+This solution helped identify that the additional query likely came from a relationship, observer, or event in the `Discount` model. Itstrategies were suggested to prevent such queries by modifying relationships or observers to use the correct connection.
+
+---
+
+## Solution 4: Check and Fix Model `Discount` and Configuration
+
+### Problem
+The `Discount` model or database configuration might be causing queries to use the wrong table or connection, especially due to relationships, observers, or incorrect database settings (e.g., `mysql` connection using database `discount`).
+
+### Solution
+- **Check Model**: Inspect the `Discount` model for relationships (e.g., `belongsTo`, `hasOne`) or observers that might trigger additional queries. Modify them to use the correct connection:
+  ```php
+  public function someRelation()
+  {
+      return $this->belongsTo(SomeModel::class)->setConnection($this->getConnectionName());
+  }
+  ```
+- **Check Observers**: If an observer exists, ensure it respects the model's connection:
+  ```php
+  public function created(Discount $discount)
+  {
+      $discount->setConnection($discount->getConnectionName())->load('someRelation');
+  }
+  ```
+- **Check Database Configuration**: Verify `config/database.php` and `.env` to ensure the `freegifts_new` connection is correctly defined and the default connection (`mysql`) is not set to an incorrect database (`discount`).
+  ```php
+  'connections' => [
+      'mysql' => [
+          'driver' => 'mysql',
+          'host' => env('DB_HOST', '127.0.0.1'),
+          'database' => env('DB_DATABASE', 'discount'), // Fix if incorrect
+          // ...
+      ],
+      'freegifts_new' => [
+          'driver' => 'mysql',
+          'host' => env('DB_HOST', '127.0.0.1'),
+          'database' => 'freegifts_new',
+          // ...
+      ],
+  ],
+  ```
+- **Clear Cache**: Run `php artisan config:clear` and `php artisan cache:clear` to refresh configuration.
+
+### Outcome
+This solution ensures that no external factors (e.g., misconfigured database, relationships, or observers) cause queries to revert to the wrong table or connection, particularly for the `createDiscount` method.
+
+---
