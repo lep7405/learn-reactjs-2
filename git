@@ -1,0 +1,54 @@
+Microsoft Windows [Version 10.0.26100.3476]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Users\ASUS\projectDeploy2>git remote -v
+fatal: not a git repository (or any of the parent directories): .git
+
+C:\Users\ASUS\projectDeploy2>git init
+Initialized empty Git repository in C:/Users/ASUS/projectDeploy2/.git/
+
+C:\Users\ASUS\projectDeploy2>git add README.md
+
+C:\Users\ASUS\projectDeploy2>git commit -m "first commit"
+Author identity unknown
+
+*** Please tell me who you are.
+
+Run
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+to set your account's default identity.
+Omit --global to set the identity only in this repository.
+
+fatal: unable to auto-detect email address (got 'ASUS@LAPTOP-UM4AKGI7.(none)')
+
+C:\Users\ASUS\projectDeploy2>git config --global user.email "lep7402@gmail.com"
+
+C:\Users\ASUS\projectDeploy2>git config --global user.name "lep7405"           
+
+C:\Users\ASUS\projectDeploy2>git remote add origin https://github.com/lep7405/laravelDeploy.git      
+
+C:\Users\ASUS\projectDeploy2>git remote -v
+origin  https://github.com/lep7405/laravelDeploy.git (fetch)
+origin  https://github.com/lep7405/laravelDeploy.git (push)
+
+C:\Users\ASUS\projectDeploy2>git commit -m "first commit"
+[master (root-commit) ded3dd0] first commit
+ 1 file changed, 61 insertions(+)
+ create mode 100644 README.md
+
+C:\Users\ASUS\projectDeploy2>git push origin master
+Enumerating objects: 3, done.
+Counting objects: 100% (3/3), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (2/2), done.
+Writing objects: 100% (3/3), 1.78 KiB | 911.00 KiB/s, done.
+Total 3 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To https://github.com/lep7405/laravelDeploy.git
+ * [new branch]      master -> master
+
+C:\Users\ASUS\projectDeploy2>
+
+
